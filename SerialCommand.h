@@ -52,19 +52,26 @@ class SerialCommand {
     void clearBuffer();   // Clears the input buffer.
     char *next();         // Returns pointer to next token found in command buffer (for getting arguments to commands).
 
-  private:
     // Command/handler dictionary
     struct SerialCommandCallback {
       char command[SERIALCOMMAND_MAXCOMMANDLENGTH + 1];
       void (*function)();
     };                                    // Data structure to hold Command/Handler function key-value pairs
+    void setCommandList(const SerialCommandCallback *commandListP,byte cmdNum)   // Init the handler
+    {
+     commandList = (SerialCommandCallback *)commandListP;
+     commandCount=cmdNum;
+    }
+
+  private:    
     SerialCommandCallback *commandList;   // Actual definition for command/handler array
     byte commandCount;
 
     // Pointer to the default handler function
     void (*defaultHandler)(const char *);
 
-    char delim[2]; // null-terminated list of character to be used as delimeters for tokenizing (default " ")
+    #define SC_NUMBER_DELIMETERS 3
+    char delim[SC_NUMBER_DELIMETERS]; // null-terminated list of character to be used as delimeters for tokenizing (default " ")
     char term;     // Character that signals end of command (default '\n')
 
     char buffer[SERIALCOMMAND_BUFFER + 1]; // Buffer of stored characters while waiting for terminator character

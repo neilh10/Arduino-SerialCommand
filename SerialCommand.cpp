@@ -42,6 +42,7 @@ SerialCommand::SerialCommand()
  * This is used for matching a found token in the buffer, and gives the pointer
  * to the handler function to deal with it.
  */
+#if defined SerialCommand_addCommand
 void SerialCommand::addCommand(const char *command, void (*function)()) {
   #ifdef SERIALCOMMAND_DEBUG
     Serial.print("Adding command (");
@@ -55,7 +56,7 @@ void SerialCommand::addCommand(const char *command, void (*function)()) {
   commandList[commandCount].function = function;
   commandCount++;
 }
-
+#endif 
 /**
  * This sets up a handler to be called in the event that the receveived command string
  * isn't in the list of commands.
@@ -73,44 +74,72 @@ void SerialCommand::setDefaultHandler(void (*function)(const char *)) {
 void SerialCommand::readSerial() {
   while (Serial.available() > 0) {
     char inChar = Serial.read();   // Read single available character, there may be more waiting
-    #ifdef SERIALCOMMAND_DEBUG
-      Serial.print(inChar);   // Echo back to serial stream
-    #endif
 
-    if (inChar == term) {     // Check for the terminator (default '\r') meaning end of command
+      Serial.print(inChar);   // Echo back to serial stream
+
+
+    if (inChar == term || inChar == '\r'|| inChar == '\n' || inChar == '!') {     // Check for the terminator (default '\r') meaning end of command
       #ifdef SERIALCOMMAND_DEBUG
-        Serial.print("Received: ");
-        Serial.println(buffer);
+        Serial.print("Received: '");
+        Serial.print(buffer);
+        Serial.print("' delim: '");
+        Serial.print(delim);
+        Serial.println("'");
       #endif
 
       char *command = strtok_r(buffer, delim, &last);   // Search for command at start of buffer
       if (command != NULL) {
         boolean matched = false;
+        #ifdef SERIALCOMMAND_DEBUG
+          Serial.print("Token: '");
+          Serial.print(command);
+          Serial.print("'");
+          Serial.print(" searching in cmds:");
+          Serial.println(commandCount);
+          if (NULL == commandList) {
+              Serial.print(" err commandList is NULL");
+              return;
+          }
+        #endif
         for (int i = 0; i < commandCount; i++) {
           #ifdef SERIALCOMMAND_DEBUG
             Serial.print("Comparing [");
             Serial.print(command);
             Serial.print("] to [");
-            Serial.print(commandList[i].command);
+            #if defined(__AVR__)
+              char cmdBuf[SERIALCOMMAND_MAXCOMMANDLENGTH+2];
+              strcpy_P(cmdBuf,commandList[i].command);
+              Serial.print(cmdBuf);
+            #else
+              Serial.print(commandList[i].command);
+            #endif // __AVR__
             Serial.println("]");
           #endif
 
           // Compare the found command against the list of known commands for a match
-          if (strncmp(command, commandList[i].command, SERIALCOMMAND_MAXCOMMANDLENGTH) == 0) {
-            #ifdef SERIALCOMMAND_DEBUG
-              Serial.print("Matched Command: ");
-              Serial.println(command);
-            #endif
-
-            // Execute the stored handler function for the command
-            (*commandList[i].function)();
-            matched = true;
+          #if defined(__AVR__)
+            if (strncmp_P(command, commandList[i].command, SERIALCOMMAND_MAXCOMMANDLENGTH) == 0) 
+            {
+              void (*fn2)();
+              memcpy_P(&fn2,  &commandList[i].function,sizeof(commandList[i].function) );
+              (*fn2)(); //execute
+          #else
+            if (strncmp(command, commandList[i].command, SERIALCOMMAND_MAXCOMMANDLENGTH) == 0)
+            {
+              (*commandList[i].function)();
+          #endif
+             matched = true;
             break;
           }
         }
         if (!matched && (defaultHandler != NULL)) {
           (*defaultHandler)(command);
         }
+      } else {
+        #ifdef SERIALCOMMAND_DEBUG
+          Serial.print("Null ");
+          Serial.println(buffer);
+        #endif        
       }
       clearBuffer();
     }
