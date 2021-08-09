@@ -42,7 +42,7 @@ SerialCommand::SerialCommand()
  * This is used for matching a found token in the buffer, and gives the pointer
  * to the handler function to deal with it.
  */
-#if defined SerialCommand_addCommand
+#if !defined SerialCommand_inFlash
 void SerialCommand::addCommand(const char *command, void (*function)()) {
   #ifdef SERIALCOMMAND_DEBUG
     Serial.print("Adding command (");
@@ -56,7 +56,7 @@ void SerialCommand::addCommand(const char *command, void (*function)()) {
   commandList[commandCount].function = function;
   commandCount++;
 }
-#endif 
+#endif // SerialCommand_inFlash
 /**
  * This sets up a handler to be called in the event that the receveived command string
  * isn't in the list of commands.
@@ -106,18 +106,18 @@ void SerialCommand::readSerial() {
             Serial.print("Comparing [");
             Serial.print(command);
             Serial.print("] to [");
-            #if defined(__AVR__)
+            #if defined(__AVR__) && defined(SerialCommand_inFlash)
               char cmdBuf[SERIALCOMMAND_MAXCOMMANDLENGTH+2];
               strcpy_P(cmdBuf,commandList[i].command);
               Serial.print(cmdBuf);
             #else
               Serial.print(commandList[i].command);
-            #endif // __AVR__
+            #endif // SerialCommand_inFlash
             Serial.println("]");
           #endif
 
           // Compare the found command against the list of known commands for a match
-          #if defined(__AVR__)
+          #if defined(__AVR__) && defined(SerialCommand_inFlash)
             if (strncmp_P(command, commandList[i].command, SERIALCOMMAND_MAXCOMMANDLENGTH) == 0) 
             {
               void (*fn2)();
@@ -127,7 +127,7 @@ void SerialCommand::readSerial() {
             if (strncmp(command, commandList[i].command, SERIALCOMMAND_MAXCOMMANDLENGTH) == 0)
             {
               (*commandList[i].function)();
-          #endif
+          #endif // SerialCommand_inFlash
              matched = true;
             break;
           }
